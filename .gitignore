@@ -1,0 +1,13 @@
+# NEVER commit these to GitHub!
+.env
+*.pyc
+__pycache__/
+.pytest_cache/
+htmlcov/
+.coverage
+*.log
+pipeline.log
+dist/
+build/
+*.egg-info/
+.DS_Store
