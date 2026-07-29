@@ -155,4 +155,4 @@ class TestIntegration:
 
 
 # keep pytest in use
-assert pytest is not 
+assert pytest is not None  
