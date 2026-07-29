@@ -4,16 +4,13 @@ Combines: Token Optimization + Debugging + Production Ready
 """
 
 import os
-import json
-import logging
 import google.generativeai as genai
 from dotenv import load_dotenv
 from optimizer import build_optimized_prompt, call_with_cache
-from debugger import FixedPipeline, validate_json_output, logger
+from debugger import validate_json_output, logger
 
 load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-model = genai.GenerativeModel("gemini-2.0-flash")
 
 REQUIRED_KEYS = [
     "questions",
@@ -24,14 +21,20 @@ REQUIRED_KEYS = [
 ]
 
 
-def fetch_youtube_comments(video_id: str, api_key: str) -> list[str]:
+def fetch_youtube_comments(
+    video_id: str,
+    api_key: str
+) -> list:
     """
     Fetch real YouTube comments using YouTube Data API v3
     Falls back to sample data if API not available
     """
     import requests
 
-    url = "https://www.googleapis.com/youtube/v3/commentThreads"
+    url = (
+        "https://www.googleapis.com"
+        "/youtube/v3/commentThreads"
+    )
     params = {
         "part": "snippet",
         "videoId": video_id,
@@ -41,7 +44,9 @@ def fetch_youtube_comments(video_id: str, api_key: str) -> list[str]:
     }
 
     try:
-        response = requests.get(url, params=params, timeout=10)
+        response = requests.get(
+            url, params=params, timeout=10
+        )
         response.raise_for_status()
         data = response.json()
 
@@ -53,14 +58,13 @@ def fetch_youtube_comments(video_id: str, api_key: str) -> list[str]:
             )
             comments.append(text)
 
-        logger.info(f"✅ Fetched {len(comments)} real comments")
+        logger.info(f"Fetched {len(comments)} real comments")
         return comments
 
     except Exception as e:
         logger.warning(f"YouTube API failed: {e}")
         logger.info("Using sample comments for demo...")
 
-        # Fallback sample comments
         return [
             "Can you make a Python tutorial?",
             "Love your content! Keep it up!",
@@ -80,19 +84,15 @@ def fetch_youtube_comments(video_id: str, api_key: str) -> list[str]:
         ]
 
 
-def analyze_comments_with_gemini(comments: list[str]) -> dict:
+def analyze_comments_with_gemini(comments: list) -> dict:
     """
     Analyze comments using optimized Gemini prompt
     Uses caching to avoid repeat API calls
     """
-    # Build optimized prompt (Part 1 optimization)
     prompt = build_optimized_prompt(comments)
-
-    # Call with cache (Part 1 optimization 2)
     result = call_with_cache(prompt)
     raw_output = result["result"]
 
-    # Validate output (Part 2 debugging)
     is_valid, data = validate_json_output(
         raw_output,
         REQUIRED_KEYS
@@ -104,7 +104,10 @@ def analyze_comments_with_gemini(comments: list[str]) -> dict:
     return data
 
 
-def generate_report(analysis: dict, channel_name: str = "Your Channel") -> str:
+def generate_report(
+    analysis: dict,
+    channel_name: str = "Your Channel"
+) -> str:
     """Generate clean weekly report"""
     ideas = analysis.get("top_content_ideas", [])
     questions = analysis.get("questions", [])
@@ -113,39 +116,41 @@ def generate_report(analysis: dict, channel_name: str = "Your Channel") -> str:
     praise = analysis.get("praise", [])
 
     report = f"""
-📊 WEEKLY AUDIENCE INSIGHTS — {channel_name}
+WEEKLY AUDIENCE INSIGHTS — {channel_name}
 {'=' * 50}
 
-🔝 TOP CONTENT IDEAS (ranked by demand):
+TOP CONTENT IDEAS (ranked by demand):
 """
     for idea in ideas[:5]:
         report += (
             f"  #{idea.get('rank', '?')}: "
             f"{idea.get('idea', 'N/A')}\n"
-            f"      → {idea.get('reason', '')}\n"
+            f"      -> {idea.get('reason', '')}\n"
         )
 
-    report += f"\n❓ QUESTIONS YOUR AUDIENCE IS ASKING ({len(questions)}):\n"
+    report += (
+        f"\nQUESTIONS YOUR AUDIENCE IS ASKING "
+        f"({len(questions)}):\n"
+    )
     for q in questions[:5]:
-        report += f"  • {q}\n"
+        report += f"  - {q}\n"
 
-    report += f"\n📋 CONTENT REQUESTS ({len(requests)}):\n"
+    report += f"\nCONTENT REQUESTS ({len(requests)}):\n"
     for r in requests[:5]:
         count = r.get('count', 1)
         idea = r.get('idea', 'N/A')
-        report += f"  • {idea} (requested {count}x)\n"
-        # Show source comments
+        report += f"  - {idea} (requested {count}x)\n"
         source = r.get('comments', [])
         for s in source[:2]:
-            report += f"      └ \"{s}\"\n"
+            report += f"      -> \"{s}\"\n"
 
-    report += f"\n😤 COMPLAINTS TO ADDRESS ({len(complaints)}):\n"
+    report += f"\nCOMPLAINTS TO ADDRESS ({len(complaints)}):\n"
     for c in complaints[:3]:
-        report += f"  • {c}\n"
+        report += f"  - {c}\n"
 
-    report += f"\n❤️  WHAT THEY LOVE ({len(praise)}):\n"
+    report += f"\nWHAT THEY LOVE ({len(praise)}):\n"
     for p in praise[:3]:
-        report += f"  • {p}\n"
+        report += f"  - {p}\n"
 
     report += f"\n{'=' * 50}\n"
     report += "Generated by Audience Comment Miner Agent\n"
@@ -163,26 +168,25 @@ def run_full_pipeline(
     2. Optimize + analyze with Gemini
     3. Generate report
     """
-    logger.info("🚀 Starting Audience Comment Miner Pipeline")
+    logger.info("Starting Audience Comment Miner Pipeline")
 
     youtube_api_key = os.getenv("YOUTUBE_API_KEY", "")
     video_id = video_id or os.getenv(
         "YOUTUBE_VIDEO_ID", "dQw4w9WgXcQ"
     )
 
-    # Step 1: Fetch comments
-    comments = fetch_youtube_comments(video_id, youtube_api_key)
-
-    # Step 2: Analyze
+    comments = fetch_youtube_comments(
+        video_id, youtube_api_key
+    )
     analysis = analyze_comments_with_gemini(comments)
-
-    # Step 3: Generate report
     report = generate_report(analysis, channel_name)
 
-    logger.info("✅ Pipeline completed successfully!")
+    logger.info("Pipeline completed successfully!")
     return report
 
 
 if __name__ == "__main__":
-    report = run_full_pipeline(channel_name="My YouTube Channel")
+    report = run_full_pipeline(
+        channel_name="My YouTube Channel"
+    )
     print(report)

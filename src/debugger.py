@@ -8,7 +8,7 @@ import time
 import json
 import random
 from functools import wraps
-from typing import Any, Callable
+from typing import Callable
 
 # ── LOGGING SETUP ────────────────────────────────────────
 logging.basicConfig(
@@ -20,6 +20,7 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger("pipeline")
+
 
 # ════════════════════════════════════════════════════════
 # DECORATORS
@@ -38,16 +39,20 @@ def retry(max_attempts: int = 3, delay: float = 2.0):
                     )
                     return func(*args, **kwargs)
                 except TimeoutError as e:
-                    logger.warning(f"TIMEOUT on attempt {attempt}: {e}")
+                    logger.warning(
+                        f"TIMEOUT on attempt {attempt}: {e}"
+                    )
                     if attempt == max_attempts:
                         logger.error(
                             f"All {max_attempts} attempts failed "
                             f"for {func.__name__}"
                         )
                         raise
-                    time.sleep(delay * attempt)  # exponential backoff
+                    time.sleep(delay * attempt)
                 except Exception as e:
-                    logger.error(f"Error on attempt {attempt}: {e}")
+                    logger.error(
+                        f"Error on attempt {attempt}: {e}"
+                    )
                     if attempt == max_attempts:
                         raise
                     time.sleep(delay)
@@ -60,19 +65,19 @@ def timed(func: Callable):
     @wraps(func)
     def wrapper(*args, **kwargs):
         start = time.time()
-        logger.info(f"▶ START: {func.__name__}")
+        logger.info(f"START: {func.__name__}")
         try:
             result = func(*args, **kwargs)
             duration = time.time() - start
             logger.info(
-                f"✅ SUCCESS: {func.__name__} "
+                f"SUCCESS: {func.__name__} "
                 f"({duration:.2f}s)"
             )
             return result
         except Exception as e:
             duration = time.time() - start
             logger.error(
-                f"❌ FAILED: {func.__name__} "
+                f"FAILED: {func.__name__} "
                 f"({duration:.2f}s) — {e}"
             )
             raise
@@ -85,20 +90,17 @@ def timed(func: Callable):
 
 def validate_json_output(
     output: str,
-    required_keys: list[str]
-) -> tuple[bool, Any]:
+    required_keys: list
+) -> tuple:
     """
     Catches malformed output and missing keys
-    — the 'silent wrong data' bug killer
+    the silent wrong data bug killer
     """
-    # Step 1: Check if output exists
     if not output or not output.strip():
         logger.error("VALIDATION FAILED: Empty output!")
         return False, None
 
-    # Step 2: Try parsing JSON
     try:
-        # Clean common AI response artifacts
         cleaned = output.strip()
         if cleaned.startswith("```json"):
             cleaned = cleaned[7:]
@@ -108,21 +110,19 @@ def validate_json_output(
             cleaned = cleaned[:-3]
 
         data = json.loads(cleaned.strip())
-        logger.debug(f"JSON parsed successfully")
+        logger.debug("JSON parsed successfully")
 
     except json.JSONDecodeError as e:
         logger.error(f"MALFORMED JSON: {e}")
         logger.debug(f"Raw output was: {output[:200]}")
         return False, None
 
-    # Step 3: Check required keys exist
     missing = [k for k in required_keys if k not in data]
     if missing:
         logger.error(f"MISSING REQUIRED KEYS: {missing}")
         logger.debug(f"Got keys: {list(data.keys())}")
         return False, None
 
-    # Step 4: Check values are not empty
     empty_keys = [
         k for k in required_keys
         if not data.get(k) and data.get(k) != 0
@@ -130,7 +130,7 @@ def validate_json_output(
     if empty_keys:
         logger.warning(f"EMPTY VALUES for keys: {empty_keys}")
 
-    logger.info("✅ Output validation PASSED")
+    logger.info("Output validation PASSED")
     return True, data
 
 
@@ -144,11 +144,10 @@ class BrokenPipeline:
     def __init__(self):
         self.call_count = 0
 
-    def fetch_comments(self, video_id: str) -> list[str]:
+    def fetch_comments(self, video_id: str) -> list:
         """Simulates intermittent timeout"""
         self.call_count += 1
 
-        # Simulate random timeout (30% of the time)
         if random.random() < 0.3:
             raise TimeoutError(
                 f"YouTube API timed out after 30s "
@@ -165,18 +164,14 @@ class BrokenPipeline:
     def analyze_with_ai(self, comments: list) -> str:
         """Simulates malformed JSON output"""
 
-        # Simulate malformed output (20% of time)
         if random.random() < 0.2:
-            return "Here are the results: blah blah"  # Not JSON!
+            return "Here are the results: blah blah"
 
-        # Simulate missing keys (20% of time)
         if random.random() < 0.2:
             return json.dumps({
                 "questions": ["How do you code?"],
-                # Missing: content_requests, top_content_ideas!
             })
 
-        # Normal good output
         return json.dumps({
             "questions": ["How do you code?"],
             "content_requests": [
@@ -185,8 +180,11 @@ class BrokenPipeline:
             "complaints": ["Bad audio"],
             "praise": ["Love your content!"],
             "top_content_ideas": [
-                {"rank": 1, "idea": "Python tutorial",
-                 "reason": "Most requested"}
+                {
+                    "rank": 1,
+                    "idea": "Python tutorial",
+                    "reason": "Most requested"
+                }
             ]
         })
 
@@ -210,7 +208,7 @@ class FixedPipeline:
 
     @timed
     @retry(max_attempts=3, delay=1.0)
-    def fetch_comments(self, video_id: str) -> list[str]:
+    def fetch_comments(self, video_id: str) -> list:
         """Step 1: Fetch with retry on timeout"""
         logger.info(f"Fetching comments for: {video_id}")
         comments = self.broken.fetch_comments(video_id)
@@ -226,7 +224,6 @@ class FixedPipeline:
         raw_output = self.broken.analyze_with_ai(comments)
         logger.debug(f"Raw AI output: {raw_output[:100]}")
 
-        # Validate output — catches malformed + missing keys
         is_valid, data = validate_json_output(
             raw_output,
             self.required_keys
@@ -246,10 +243,10 @@ class FixedPipeline:
         questions = analysis.get("questions", [])
         requests = analysis.get("content_requests", [])
 
-        report = "📊 WEEKLY AUDIENCE INSIGHTS REPORT\n"
+        report = "WEEKLY AUDIENCE INSIGHTS REPORT\n"
         report += "=" * 40 + "\n\n"
 
-        report += f"🔝 TOP CONTENT IDEAS:\n"
+        report += "TOP CONTENT IDEAS:\n"
         for idea in ideas:
             report += (
                 f"  #{idea.get('rank')}: "
@@ -257,14 +254,14 @@ class FixedPipeline:
                 f"{idea.get('reason')}\n"
             )
 
-        report += f"\n❓ QUESTIONS ({len(questions)}):\n"
+        report += f"\nQUESTIONS ({len(questions)}):\n"
         for q in questions:
-            report += f"  • {q}\n"
+            report += f"  - {q}\n"
 
-        report += f"\n📋 CONTENT REQUESTS ({len(requests)}):\n"
+        report += f"\nCONTENT REQUESTS ({len(requests)}):\n"
         for r in requests:
             report += (
-                f"  • {r.get('idea')} "
+                f"  - {r.get('idea')} "
                 f"(requested {r.get('count', 1)}x)\n"
             )
 
@@ -272,25 +269,17 @@ class FixedPipeline:
 
     def run(self, video_id: str = "dQw4w9WgXcQ") -> str:
         """Run the complete fixed pipeline"""
-        logger.info("=" * 50)
         logger.info("STARTING FIXED PIPELINE")
-        logger.info("=" * 50)
 
         try:
-            # Step 1
             comments = self.fetch_comments(video_id)
-
-            # Step 2
             analysis = self.analyze_comments(comments)
-
-            # Step 3
             report = self.format_report(analysis)
-
-            logger.info("✅ PIPELINE COMPLETED SUCCESSFULLY")
+            logger.info("PIPELINE COMPLETED SUCCESSFULLY")
             return report
 
         except Exception as e:
-            logger.error(f"❌ PIPELINE FAILED: {e}")
+            logger.error(f"PIPELINE FAILED: {e}")
             raise
 
 
@@ -305,13 +294,12 @@ def run_debugging_demo():
 
     pipeline = FixedPipeline()
 
-    # Run multiple times to show retry handling
     for run in range(1, 4):
         print(f"\n--- Run {run} ---")
         try:
             report = pipeline.run("test_video_123")
             print("\n" + report)
-            break  # Success — stop
+            break
         except Exception as e:
             print(f"Run {run} ultimately failed: {e}")
             if run < 3:
