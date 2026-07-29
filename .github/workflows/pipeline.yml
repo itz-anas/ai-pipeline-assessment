@@ -2,10 +2,10 @@ name: CI/CD Pipeline — Audience Comment Miner
 
 on:
   push:
-    branches: ["**"]         # Lint + test on ALL pushes
+    branches: ["**"] # Lint + test on ALL pushes
   pull_request:
     branches: [main]
-  workflow_dispatch:          # Manual trigger anytime
+  workflow_dispatch: # Manual trigger anytime
 
 jobs:
   # ════════════════════════════════════════════════════
@@ -52,7 +52,7 @@ jobs:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
 
       - name: 📊 Upload coverage report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@4
         with:
           name: coverage-report
           path: htmlcov/
@@ -63,7 +63,7 @@ jobs:
   # ════════════════════════════════════════════════════
   deploy-staging:
     name: 🚀 Deploy to Staging
-    needs: test-and-lint          # Only runs if tests pass!
+    needs: test-and-lint # Only runs if tests pass!
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
